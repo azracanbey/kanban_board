@@ -164,7 +164,7 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
+        delay: 550,
         tolerance: 5,
       },
     }),

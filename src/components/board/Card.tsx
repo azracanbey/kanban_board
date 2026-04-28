@@ -2,7 +2,7 @@
 
 import { defaultAnimateLayoutChanges, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import { useI18n } from "@/providers";
 import { getCardTopAccent } from "@/lib/kanbanPastel";
 import { getUrgencyBand, urgencyBadgeClass } from "@/lib/urgencyScore";
@@ -83,8 +83,8 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
     };
   }, [showMobileMenu]);
 
-  const handleTouchStart = () => {
-    if (!isCoarsePointer) {
+  const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (!isCoarsePointer || event.pointerType !== "touch") {
       return;
     }
     clearLongPress();
@@ -94,7 +94,10 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
     }, 500);
   };
 
-  const handleTouchEnd = () => {
+  const handlePointerUp = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType !== "touch") {
+      return;
+    }
     clearLongPress();
   };
 
@@ -125,9 +128,9 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
       style={style}
       {...attributes}
       {...listeners}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       className={`group relative w-full min-h-[80px] touch-none border border-[var(--app-border)] bg-[var(--app-card)] text-[var(--app-text)] shadow-sm transition hover:shadow-md dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)] ${topAccent} ${isFresh ? "taskflow-card-new" : ""}`.trim()}
     >
       <div className="flex w-full flex-col gap-1.5 p-4 text-left">
