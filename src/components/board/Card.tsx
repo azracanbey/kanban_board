@@ -22,8 +22,10 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
   const { t } = useI18n();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+  const [isPressing, setIsPressing] = useState(false);
   const longPressTimer = useRef<number | null>(null);
   const cardElRef = useRef<HTMLElement | null>(null);
+  const lastTapAtRef = useRef<number>(0);
 
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -83,14 +85,23 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
     };
   }, [showMobileMenu]);
 
+  const openMobileMenu = useCallback(() => {
+    setShowMobileMenu(true);
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(12);
+    }
+  }, []);
+
   const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
     if (!isCoarsePointer || event.pointerType !== "touch") {
       return;
     }
     clearLongPress();
+    setIsPressing(true);
     longPressTimer.current = window.setTimeout(() => {
       longPressTimer.current = null;
-      setShowMobileMenu(true);
+      setIsPressing(false);
+      openMobileMenu();
     }, 500);
   };
 
@@ -99,6 +110,15 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
       return;
     }
     clearLongPress();
+    setIsPressing(false);
+
+    // Mobilde alternatif: çift dokunuşla (double tap) menüyü aç.
+    const now = Date.now();
+    const lastTap = lastTapAtRef.current;
+    lastTapAtRef.current = now;
+    if (!showMobileMenu && now - lastTap < 280) {
+      openMobileMenu();
+    }
   };
 
   const style = {
@@ -131,7 +151,7 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      className={`group relative w-full min-h-[80px] touch-none border border-[var(--app-border)] bg-[var(--app-card)] text-[var(--app-text)] shadow-sm transition hover:shadow-md dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)] ${topAccent} ${isFresh ? "taskflow-card-new" : ""}`.trim()}
+      className={`group relative w-full min-h-[80px] touch-none border border-[var(--app-border)] bg-[var(--app-card)] text-[var(--app-text)] shadow-sm transition hover:shadow-md dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)] ${isPressing ? "ring-2 ring-[#C1C7FF]/55 scale-[0.99]" : ""} ${topAccent} ${isFresh ? "taskflow-card-new" : ""}`.trim()}
     >
       <div className="flex w-full flex-col gap-1.5 p-4 text-left">
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -152,8 +172,9 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
           </p>
         ) : null}
       </div>
+      {/* Desktop: hover ile aksiyon barı. Mobil ekranlarda responsive olarak gizli. */}
       {!isCoarsePointer ? (
-        <div className="pointer-events-none absolute inset-0 flex items-end justify-center px-2 pb-2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
+        <div className="pointer-events-none absolute inset-0 hidden items-end justify-center px-2 pb-2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 md:flex">
           <div
             className="pointer-events-auto flex translate-y-0.5 gap-1 rounded border border-[var(--app-border)] bg-[var(--app-card)] px-0.5 py-0.5 shadow-sm"
             onPointerDown={(event) => event.stopPropagation()}
@@ -195,14 +216,14 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
       ) : null}
       {isCoarsePointer && showMobileMenu ? (
         <div
-          className="absolute right-0 top-0 z-50 flex min-w-[140px] flex-col gap-1 rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] p-1 shadow-lg dark:border-[#3A3D52] dark:bg-[#1E2130]"
+          className="absolute right-0 top-0 z-50 flex min-w-[160px] flex-col gap-1 rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] p-1 shadow-lg dark:border-[#3A3D52] dark:bg-[#1E2130]"
           onPointerDown={(event) => event.stopPropagation()}
           role="menu"
         >
           <button
             type="button"
             role="menuitem"
-            className="rounded-lg px-3 py-2 text-left text-sm text-[var(--app-text)] hover:bg-[var(--app-column)]"
+            className="min-h-11 rounded-lg px-3 py-2 text-left text-sm font-medium text-[var(--app-text)] hover:bg-[var(--app-column)]"
             onClick={(event) => {
               event.stopPropagation();
               onEdit(card);
@@ -214,7 +235,7 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
           <button
             type="button"
             role="menuitem"
-            className="rounded-lg px-3 py-2 text-left text-sm text-[var(--app-text)] hover:bg-[var(--app-column)]"
+            className="min-h-11 rounded-lg px-3 py-2 text-left text-sm font-medium text-[var(--app-text)] hover:bg-[var(--app-column)]"
             onClick={async (event) => {
               event.stopPropagation();
               setShowMobileMenu(false);
@@ -227,7 +248,7 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
           <button
             type="button"
             role="menuitem"
-            className="rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+            className="min-h-11 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
             onClick={(event) => {
               event.stopPropagation();
               onDelete(card.id);
