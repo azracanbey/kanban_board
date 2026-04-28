@@ -8,7 +8,7 @@ import {
   type DragOverEvent,
   type DragStartEvent,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCorners,
   useSensor,
@@ -20,7 +20,7 @@ import {
   horizontalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Column } from "@/components/board/Column";
 import { DragOverlay } from "@/components/board/DragOverlay";
 import {
@@ -48,6 +48,62 @@ type BoardViewProps = {
 type PendingDeleteTarget =
   | { type: "column"; id: string }
   | { type: "card"; id: string };
+
+type BoardColumnsListProps = {
+  columnsState: ColumnType[];
+  cardsByColumn: Record<string, Card[]>;
+  deletingCardId: string | null;
+  splittingCardId: string | null;
+  freshCardIds: string[];
+  deletingColumnId: string | null;
+  onAddCard: (columnId: string, title: string) => Promise<void>;
+  onDeleteCard: (cardId: string) => void;
+  onAIMagicCard: (card: Card) => Promise<void>;
+  onDeleteColumn: (columnId: string) => void;
+  onEditCard: (card: Card) => void;
+  onRenameColumn: (columnId: string, title: string) => Promise<void>;
+};
+
+function BoardColumnsListInner({
+  columnsState,
+  cardsByColumn,
+  deletingCardId,
+  splittingCardId,
+  freshCardIds,
+  deletingColumnId,
+  onAddCard,
+  onDeleteCard,
+  onAIMagicCard,
+  onDeleteColumn,
+  onEditCard,
+  onRenameColumn,
+}: BoardColumnsListProps) {
+  return (
+    <div className="flex h-full min-h-0 items-stretch gap-0 divide-x divide-[var(--app-border)] pr-1">
+      {columnsState.map((column, index) => (
+        <div key={column.id} className="shrink-0 pl-2 first:pl-1">
+          <Column
+            column={column}
+            columnIndex={index}
+            cards={cardsByColumn[column.id] ?? []}
+            deletingCardId={deletingCardId}
+            splittingCardId={splittingCardId}
+            freshCardIds={freshCardIds}
+            isDeleting={deletingColumnId === column.id}
+            onAddCard={onAddCard}
+            onDeleteCard={onDeleteCard}
+            onAIMagicCard={onAIMagicCard}
+            onDeleteColumn={onDeleteColumn}
+            onEditCard={onEditCard}
+            onRenameColumn={onRenameColumn}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const BoardColumnsList = memo(BoardColumnsListInner);
 
 export function BoardView({ board, cards, columns, userDisplayName }: BoardViewProps) {
   const { t, locale } = useI18n();
@@ -101,15 +157,15 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 4,
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 180,
-        tolerance: 8,
+        delay: 250,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -508,32 +564,28 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
           onDragEnd={handleDragEnd}
         >
           <div className="min-h-[60vh] overflow-hidden rounded border border-[var(--app-border)] bg-[var(--app-column)] shadow-inner sm:min-h-[min(70vh,720px)]">
-            <div className="h-full min-h-0 min-w-0 overflow-x-auto p-2">
+            <div
+              className="h-full min-h-0 min-w-0 overflow-x-auto p-2"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
               <SortableContext
                 items={columnsState.map((column) => `column-sort-${column.id}`)}
                 strategy={horizontalListSortingStrategy}
               >
-                <div className="flex h-full min-h-0 items-stretch gap-0 divide-x divide-[var(--app-border)] pr-1">
-                  {columnsState.map((column, index) => (
-                    <div key={column.id} className="shrink-0 pl-2 first:pl-1">
-                      <Column
-                        column={column}
-                        columnIndex={index}
-                        cards={cardsByColumn[column.id] ?? []}
-                        deletingCardId={deletingCardId}
-                        splittingCardId={splittingCardId}
-                        freshCardIds={freshCardIds}
-                        isDeleting={deletingColumnId === column.id}
-                        onAddCard={handleAddCard}
-                        onDeleteCard={handleDeleteCardRequest}
-                        onAIMagicCard={handleAIMagicCardRequest}
-                        onDeleteColumn={handleDeleteColumnRequest}
-                        onEditCard={openEditModal}
-                        onRenameColumn={handleRenameColumn}
-                      />
-                    </div>
-                  ))}
-                </div>
+                <BoardColumnsList
+                  columnsState={columnsState}
+                  cardsByColumn={cardsByColumn}
+                  deletingCardId={deletingCardId}
+                  splittingCardId={splittingCardId}
+                  freshCardIds={freshCardIds}
+                  deletingColumnId={deletingColumnId}
+                  onAddCard={handleAddCard}
+                  onDeleteCard={handleDeleteCardRequest}
+                  onAIMagicCard={handleAIMagicCardRequest}
+                  onDeleteColumn={handleDeleteColumnRequest}
+                  onEditCard={openEditModal}
+                  onRenameColumn={handleRenameColumn}
+                />
               </SortableContext>
             </div>
           </div>

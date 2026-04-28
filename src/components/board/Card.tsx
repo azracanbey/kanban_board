@@ -2,7 +2,7 @@
 
 import { defaultAnimateLayoutChanges, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { memo } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/providers";
 import { getCardTopAccent } from "@/lib/kanbanPastel";
 import { getUrgencyBand, urgencyBadgeClass } from "@/lib/urgencyScore";
@@ -20,6 +20,11 @@ type CardProps = {
 
 function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit, onAIMagic }: CardProps) {
   const { t } = useI18n();
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+  const longPressTimer = useRef<number | null>(null);
+  const cardElRef = useRef<HTMLElement | null>(null);
+
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } =
     useSortable({
       id: card.id,
@@ -29,6 +34,69 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
       },
       animateLayoutChanges: defaultAnimateLayoutChanges,
     });
+
+  const combinedRef = useCallback(
+    (node: HTMLElement | null) => {
+      setNodeRef(node);
+      cardElRef.current = node;
+    },
+    [setNodeRef],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const mq = window.matchMedia("(pointer: coarse)");
+    const sync = () => setIsCoarsePointer(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearLongPress(), [clearLongPress]);
+
+  useEffect(() => {
+    if (!showMobileMenu) {
+      return;
+    }
+    const close = (e: Event) => {
+      const node = cardElRef.current;
+      const target = e.target;
+      if (!(target instanceof Node) || !node || node.contains(target)) {
+        return;
+      }
+      setShowMobileMenu(false);
+    };
+    document.addEventListener("touchstart", close, true);
+    document.addEventListener("mousedown", close, true);
+    return () => {
+      document.removeEventListener("touchstart", close, true);
+      document.removeEventListener("mousedown", close, true);
+    };
+  }, [showMobileMenu]);
+
+  const handleTouchStart = () => {
+    if (!isCoarsePointer) {
+      return;
+    }
+    clearLongPress();
+    longPressTimer.current = window.setTimeout(() => {
+      longPressTimer.current = null;
+      setShowMobileMenu(true);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    clearLongPress();
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -53,10 +121,13 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
 
   return (
     <article
-      ref={setNodeRef}
+      ref={combinedRef}
       style={style}
       {...attributes}
       {...listeners}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       className={`group relative w-full min-h-[80px] touch-none border border-[var(--app-border)] bg-[var(--app-card)] text-[var(--app-text)] shadow-sm transition hover:shadow-md dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)] ${topAccent} ${isFresh ? "taskflow-card-new" : ""}`.trim()}
     >
       <div className="flex w-full flex-col gap-1.5 p-4 text-left">
@@ -78,45 +149,93 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
           </p>
         ) : null}
       </div>
-      <div className="pointer-events-none absolute inset-0 flex items-end justify-center px-2 pb-2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
+      {!isCoarsePointer ? (
+        <div className="pointer-events-none absolute inset-0 flex items-end justify-center px-2 pb-2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
+          <div
+            className="pointer-events-auto flex translate-y-0.5 gap-1 rounded border border-[var(--app-border)] bg-[var(--app-card)] px-0.5 py-0.5 shadow-sm"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="min-h-9 min-w-9 rounded px-1.5 py-0.5 text-[10px] font-medium text-[var(--app-text)] hover:bg-[var(--app-column)] sm:min-h-0 sm:min-w-0"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit(card);
+              }}
+            >
+              {t("common.edit")}
+            </button>
+            <button
+              type="button"
+              className="min-h-9 min-w-9 rounded px-1.5 py-0.5 text-[10px] font-medium text-[#2f5ea3] hover:bg-[#e8f1ff] disabled:opacity-50 dark:text-[#9fc3ff] dark:hover:bg-[#1d2a3f] sm:min-h-0 sm:min-w-0"
+              onClick={async (event) => {
+                event.stopPropagation();
+                await onAIMagic(card);
+              }}
+              disabled={isMagicLoading}
+            >
+              {isMagicLoading ? t("board.cardAiLoading") : t("board.cardMenuAiMagic")}
+            </button>
+            <button
+              type="button"
+              className="min-h-9 min-w-9 rounded px-1.5 py-0.5 text-[10px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/30 sm:min-h-0 sm:min-w-0"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete(card.id);
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? t("common.deleting") : t("common.delete")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {isCoarsePointer && showMobileMenu ? (
         <div
-          className="pointer-events-auto flex translate-y-0.5 gap-1 rounded border border-[var(--app-border)] bg-[var(--app-card)] px-0.5 py-0.5 shadow-sm"
+          className="absolute right-0 top-0 z-50 flex min-w-[140px] flex-col gap-1 rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] p-1 shadow-lg dark:border-[#3A3D52] dark:bg-[#1E2130]"
           onPointerDown={(event) => event.stopPropagation()}
+          role="menu"
         >
           <button
             type="button"
-            className="min-h-9 min-w-9 rounded px-1.5 py-0.5 text-[10px] font-medium text-[var(--app-text)] hover:bg-[var(--app-column)] sm:min-h-0 sm:min-w-0"
+            role="menuitem"
+            className="rounded-lg px-3 py-2 text-left text-sm text-[var(--app-text)] hover:bg-[var(--app-column)]"
             onClick={(event) => {
               event.stopPropagation();
               onEdit(card);
+              setShowMobileMenu(false);
             }}
           >
-            {t("common.edit")}
+            ✏️ {t("common.edit")}
           </button>
           <button
             type="button"
-            className="min-h-9 min-w-9 rounded px-1.5 py-0.5 text-[10px] font-medium text-[#2f5ea3] hover:bg-[#e8f1ff] disabled:opacity-50 dark:text-[#9fc3ff] dark:hover:bg-[#1d2a3f] sm:min-h-0 sm:min-w-0"
+            role="menuitem"
+            className="rounded-lg px-3 py-2 text-left text-sm text-[var(--app-text)] hover:bg-[var(--app-column)]"
             onClick={async (event) => {
               event.stopPropagation();
+              setShowMobileMenu(false);
               await onAIMagic(card);
             }}
             disabled={isMagicLoading}
           >
-            {isMagicLoading ? "AI..." : "AI Magic"}
+            ✨ {isMagicLoading ? t("board.cardAiLoading") : t("board.cardMenuAiMagic")}
           </button>
           <button
             type="button"
-            className="min-h-9 min-w-9 rounded px-1.5 py-0.5 text-[10px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/30 sm:min-h-0 sm:min-w-0"
+            role="menuitem"
+            className="rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
             onClick={(event) => {
               event.stopPropagation();
               onDelete(card.id);
+              setShowMobileMenu(false);
             }}
             disabled={isDeleting}
           >
-            {isDeleting ? t("common.deleting") : t("common.delete")}
+            🗑 {isDeleting ? t("common.deleting") : t("common.delete")}
           </button>
         </div>
-      </div>
+      ) : null}
     </article>
   );
 }

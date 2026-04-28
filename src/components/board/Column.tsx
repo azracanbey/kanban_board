@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -87,6 +87,14 @@ function ColumnInner({
     setDroppableNodeRef(node);
     setSortableNodeRef(node);
   };
+
+  const sortedCards = useMemo(
+    () =>
+      cards
+        .filter((c) => c.column_id === column.id)
+        .sort((a, b) => a.position - b.position),
+    [cards, column.id],
+  );
 
   const handleAddCard = async () => {
     const trimmedTitle = newCardTitle.trim();
@@ -247,17 +255,17 @@ function ColumnInner({
         )}
 
       <div className="flex flex-1 flex-col gap-2 bg-[var(--app-card)] p-2">
-        {cards.length === 0 ? (
+        {sortedCards.length === 0 ? (
           <p className="py-2 text-center text-xs text-[var(--app-text-muted)]">
             {t("common.noCards")}
           </p>
         ) : (
           <SortableContext
-            items={cards.map((card) => card.id)}
+            items={sortedCards.map((card) => card.id)}
             strategy={verticalListSortingStrategy}
           >
             <div className="flex flex-col gap-2">
-              {cards.map((card) => (
+              {sortedCards.map((card) => (
                 <Card
                   key={card.id}
                   card={card}
