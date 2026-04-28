@@ -401,6 +401,18 @@ ${txt("Yanıtların kısa ve net Türkçe olsun.", "Reply in concise and clear E
       }
 
       const sourceDescription = String(targetCard.description ?? "").trim();
+      if (targetCard.ai_magic_applied === true) {
+        return NextResponse.json({
+          reply: txt(
+            "AI Magic bu karta zaten uygulandı; aynı karta veya AI ile oluşan alt görevlere tekrar uygulanamaz.",
+            "AI Magic was already applied to this card; it cannot be applied again to the same card or AI-generated subtasks.",
+          ),
+          action: null,
+          actionData: null,
+          toolName: "split_card_into_subtasks",
+        });
+      }
+
       if (sourceDescription.length < 8) {
         return NextResponse.json({
           reply: txt(
@@ -508,13 +520,14 @@ ${txt("Yanıtların kısa ve net Türkçe olsun.", "Reply in concise and clear E
           description: item.description,
           position: basePosition,
           urgency_score: item.urgency_score,
+          ai_magic_applied: true,
         };
       });
 
       const { data: createdCards, error: createError } = await supabase
         .from("cards")
         .insert(rowsToInsert)
-        .select("id, column_id, title, description, position, created_at, urgency_score");
+        .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied");
 
       if (createError || !createdCards || createdCards.length === 0) {
         return NextResponse.json({
@@ -531,14 +544,14 @@ ${txt("Yanıtların kısa ve net Türkçe olsun.", "Reply in concise and clear E
       const parentUrgency = clampUrgencyScoreOrDefault(splitArgs.parent_urgency_score, 5);
       await supabase
         .from("cards")
-        .update({ urgency_score: parentUrgency })
+        .update({ urgency_score: parentUrgency, ai_magic_applied: true })
         .eq("id", targetCard.id);
 
       let columnCardsOrdered = await persistColumnUrgencyOrder(supabase, targetColumnId);
       if (!columnCardsOrdered || columnCardsOrdered.length === 0) {
         const { data: fallback } = await supabase
           .from("cards")
-          .select("id, column_id, title, description, position, created_at, urgency_score")
+          .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
           .eq("column_id", targetColumnId)
           .order("position", { ascending: true });
         columnCardsOrdered = (fallback ?? []) as typeof columnCardsOrdered;

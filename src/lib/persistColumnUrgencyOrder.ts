@@ -3,7 +3,7 @@ import type { Card } from "@/lib/types";
 import { sortCardsByUrgencyScoreDesc } from "@/lib/urgencyScore";
 
 const CARD_SELECT =
-  "id, column_id, title, description, position, created_at, urgency_score" as const;
+  "id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied" as const;
 
 /**
  * Sütundaki kartları aciliyete göre sıralayıp position değerlerini veritabanına yazar.

@@ -141,6 +141,12 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
         : band === "low"
           ? t("board.urgencyLow")
           : "";
+  const aiMagicDisabled = isMagicLoading || card.ai_magic_applied === true;
+  const aiMagicLabel = card.ai_magic_applied
+    ? t("board.cardAiApplied")
+    : isMagicLoading
+      ? t("board.cardAiLoading")
+      : t("board.cardMenuAiMagic");
 
   return (
     <article
@@ -194,11 +200,14 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
               className="min-h-9 min-w-9 rounded px-1.5 py-0.5 text-[10px] font-medium text-[#2f5ea3] hover:bg-[#e8f1ff] disabled:opacity-50 dark:text-[#9fc3ff] dark:hover:bg-[#1d2a3f] sm:min-h-0 sm:min-w-0"
               onClick={async (event) => {
                 event.stopPropagation();
+                if (card.ai_magic_applied) {
+                  return;
+                }
                 await onAIMagic(card);
               }}
-              disabled={isMagicLoading}
+              disabled={aiMagicDisabled}
             >
-              {isMagicLoading ? t("board.cardAiLoading") : t("board.cardMenuAiMagic")}
+              {aiMagicLabel}
             </button>
             <button
               type="button"
@@ -223,7 +232,7 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
           <button
             type="button"
             role="menuitem"
-            className="min-h-11 rounded-lg px-3 py-2 text-left text-sm font-medium text-[var(--app-text)] hover:bg-[var(--app-column)]"
+            className="min-h-11 rounded-lg px-3 py-2 text-left text-sm font-medium text-[var(--app-text)] hover:bg-[var(--app-column)] disabled:cursor-not-allowed disabled:opacity-50"
             onClick={(event) => {
               event.stopPropagation();
               onEdit(card);
@@ -239,11 +248,14 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
             onClick={async (event) => {
               event.stopPropagation();
               setShowMobileMenu(false);
+              if (card.ai_magic_applied) {
+                return;
+              }
               await onAIMagic(card);
             }}
-            disabled={isMagicLoading}
+            disabled={aiMagicDisabled}
           >
-            ✨ {isMagicLoading ? t("board.cardAiLoading") : t("board.cardMenuAiMagic")}
+            ✨ {aiMagicLabel}
           </button>
           <button
             type="button"

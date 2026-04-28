@@ -55,7 +55,7 @@ export default async function BoardDetailPage({ params }: BoardDetailPageProps) 
         const columnIds = columns.map((column) => column.id);
         const { data: cardData, error: cardError } = await supabase
           .from("cards")
-          .select("id, column_id, title, description, position, created_at, urgency_score")
+          .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
           .in("column_id", columnIds)
           .order("position", { ascending: true });
 

@@ -33,4 +33,6 @@ export type Card = {
   created_at: string;
   /** 1–10 aciliyet; AI Magic veya manuel sıralama ile kullanılır */
   urgency_score?: number | null;
+  /** AI Magic bir kez çalıştıysa veya kart AI subtask olarak oluştuysa tekrar çalıştırılmaz. */
+  ai_magic_applied?: boolean;
 };

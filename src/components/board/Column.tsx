@@ -126,6 +126,12 @@ function ColumnInner({
     }
   };
 
+  const handleAddCardSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void handleAddCard();
+  };
+
   const validateTitle = (value: string) => {
     const trimmed = value.trim();
     if (trimmed.length < 2) {
@@ -177,7 +183,7 @@ function ColumnInner({
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex h-fit w-[220px] max-w-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] shadow-sm sm:w-[240px] sm:max-w-[240px] ${overRing} transition-shadow`}
+      className={`flex h-fit w-full max-w-none shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] shadow-sm md:w-[240px] md:max-w-[240px] ${overRing} transition-shadow`}
     >
         {isEditingTitle ? (
           <div
@@ -281,11 +287,20 @@ function ColumnInner({
           </SortableContext>
         )}
 
-        <div className="space-y-1.5 border-t border-[var(--app-border)] pt-2">
+        <form
+          className="space-y-1.5 border-t border-[var(--app-border)] pt-2"
+          onSubmit={handleAddCardSubmit}
+        >
           <input
             type="text"
             value={newCardTitle}
             onChange={(event) => setNewCardTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              event.stopPropagation();
+              void handleAddCard();
+            }}
             onPointerDown={(event) => event.stopPropagation()}
             placeholder={t("common.placeholderNewCard")}
             className="app-field app-field-input !text-sm"
@@ -294,18 +309,15 @@ function ColumnInner({
             <p className="text-[10px] text-red-600 dark:text-red-400">{cardError}</p>
           ) : null}
           <button
-            type="button"
+            type="submit"
             className="h-8 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-card)] text-xs font-medium text-[var(--app-text)] hover:brightness-95"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              void handleAddCard();
-            }}
+            onClick={(event) => event.stopPropagation()}
             disabled={isAddingCard}
           >
             {isAddingCard ? t("common.adding") : t("common.addCard")}
           </button>
-        </div>
+        </form>
       </div>
     </section>
   );

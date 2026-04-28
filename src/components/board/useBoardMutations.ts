@@ -221,6 +221,7 @@ export function useBoardMutations({
       description: "",
       position: newPosition,
       created_at: new Date().toISOString(),
+      ai_magic_applied: false,
     };
 
     setCardsState((previous) => [...previous, optimisticCard]);
@@ -234,7 +235,7 @@ export function useBoardMutations({
           description: "",
           position: newPosition,
         })
-        .select("id, column_id, title, description, position, created_at, urgency_score")
+        .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
         .single();
 
       if (error) {
@@ -281,6 +282,15 @@ export function useBoardMutations({
   };
 
   const splitCardIntoSubtasks = async (card: Card) => {
+    if (card.ai_magic_applied) {
+      setColumnActionError(
+        locale === "tr"
+          ? "AI Magic bu karta zaten uygulandı."
+          : "AI Magic was already applied to this card.",
+      );
+      return;
+    }
+
     const description = card.description?.trim() ?? "";
     if (description.length < 8) {
       setColumnActionError(

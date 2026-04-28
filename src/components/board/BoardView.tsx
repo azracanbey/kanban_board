@@ -19,6 +19,7 @@ import {
   arrayMove,
   horizontalListSortingStrategy,
   sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Column } from "@/components/board/Column";
@@ -79,9 +80,9 @@ function BoardColumnsListInner({
   onRenameColumn,
 }: BoardColumnsListProps) {
   return (
-    <div className="flex min-h-0 items-start gap-0 divide-x divide-[var(--app-border)] pr-1">
+    <div className="flex min-h-0 flex-col items-stretch gap-2 pr-1 md:flex-row md:items-start md:gap-0 md:divide-x md:divide-[var(--app-border)]">
       {columnsState.map((column, index) => (
-        <div key={column.id} className="shrink-0 pl-2 first:pl-1">
+        <div key={column.id} className="shrink-0 md:pl-2 md:first:pl-1">
           <Column
             column={column}
             columnIndex={index}
@@ -116,6 +117,7 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteTarget | null>(
     null,
   );
+  const [isMdUp, setIsMdUp] = useState(false);
 
   const {
     editingCard,
@@ -174,6 +176,15 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
   );
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const sync = () => setIsMdUp(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
     const handler = async (event: Event) => {
       const custom = event as CustomEvent<{ boardId?: string }>;
       if (custom.detail?.boardId !== board.id) {
@@ -199,7 +210,7 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
         if (columnIds.length > 0) {
           const { data: nextCards, error: cardsError } = await supabase
             .from("cards")
-            .select("id, column_id, title, description, position, created_at, urgency_score")
+            .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
             .in("column_id", columnIds)
             .order("position", { ascending: true });
 
@@ -524,6 +535,12 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
               label={t("common.newColumn")}
               value={newColumnTitle}
               onChange={(event) => setNewColumnTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                event.stopPropagation();
+                void handleAddColumn();
+              }}
               placeholder={t("common.placeholderNewColumn")}
               error={newColumnError}
             />
@@ -565,12 +582,12 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
         >
           <div className="overflow-hidden rounded border border-[var(--app-border)] bg-[var(--app-column)] shadow-inner">
             <div
-              className="min-w-0 overflow-x-auto p-2"
+              className="min-w-0 overflow-x-visible p-2 md:overflow-x-auto"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
               <SortableContext
                 items={columnsState.map((column) => `column-sort-${column.id}`)}
-                strategy={horizontalListSortingStrategy}
+                strategy={isMdUp ? horizontalListSortingStrategy : verticalListSortingStrategy}
               >
                 <BoardColumnsList
                   columnsState={columnsState}
