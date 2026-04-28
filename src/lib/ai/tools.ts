@@ -69,6 +69,23 @@ export const boardTools = [
     }
   },
   {
+    name: "create_board_from_template",
+    description:
+      "Belirli bir şablonla board oluşturur (kanban, scrum, marketing, personal, empty)",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Oluşturulacak board adı" },
+        template: {
+          type: "string",
+          enum: ["kanban", "scrum", "marketing", "personal", "empty"],
+          description: "Kullanılacak şablon kimliği",
+        },
+      },
+      required: ["name", "template"],
+    },
+  },
+  {
     name: "delete_board",
     description: "Adına göre board siler",
     input_schema: {

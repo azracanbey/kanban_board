@@ -24,7 +24,7 @@ export function ThemeLanguageControls() {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2 text-[var(--app-text)]">
+    <div className="flex items-center justify-end gap-1.5 text-[var(--app-text)] sm:gap-2">
       <div
         className="inline-flex rounded-full border border-[var(--app-border)] bg-[var(--app-card)] p-0.5 text-xs shadow-sm"
         role="group"
@@ -32,24 +32,29 @@ export function ThemeLanguageControls() {
       >
         {(
           [
-            ["light", "common.themeLight"],
-            ["dark", "common.themeDark"],
-            ["system", "common.themeSystem"],
+            ["light", "common.themeLight", "☀"],
+            ["dark", "common.themeDark", "🌙"],
+            ["system", "common.themeSystem", "🖥"],
           ] as const
-        ).map(([value, labelKey]) => {
+        ).map(([value, labelKey, mobileIcon]) => {
           const active = theme === value;
           return (
             <button
               key={value}
               type="button"
               onClick={() => setTheme(value)}
-              className={`rounded-full px-2.5 py-1.5 font-medium transition ${
+              className={`rounded-full px-2 py-1.5 font-medium transition sm:px-2.5 ${
                 active
                   ? "bg-[#C1C7FF] text-[#1A1A2E] ring-1 ring-[#a8b0e8] dark:bg-[#3A3F5C] dark:text-[#F1F3F9] dark:ring-[#4A5070]"
                   : "text-[var(--app-text-muted)] hover:bg-[var(--app-column)]"
               }`}
+              aria-label={t(labelKey)}
+              title={t(labelKey)}
             >
-              {t(labelKey)}
+              <span className="sm:hidden" aria-hidden>
+                {mobileIcon}
+              </span>
+              <span className="hidden sm:inline">{t(labelKey)}</span>
             </button>
           );
         })}

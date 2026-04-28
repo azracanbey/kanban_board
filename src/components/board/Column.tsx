@@ -177,7 +177,7 @@ function ColumnInner({
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex w-[220px] max-w-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] shadow-sm sm:w-[240px] sm:max-w-[240px] ${overRing} transition-shadow`}
+      className={`flex h-fit w-[220px] max-w-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] shadow-sm sm:w-[240px] sm:max-w-[240px] ${overRing} transition-shadow`}
     >
         {isEditingTitle ? (
           <div
@@ -254,7 +254,7 @@ function ColumnInner({
           </div>
         )}
 
-      <div className="flex flex-1 flex-col gap-2 bg-[var(--app-card)] p-2">
+      <div className="flex flex-col gap-2 bg-[var(--app-card)] p-2">
         {sortedCards.length === 0 ? (
           <p className="py-2 text-center text-xs text-[var(--app-text-muted)]">
             {t("common.noCards")}
@@ -264,7 +264,7 @@ function ColumnInner({
             items={sortedCards.map((card) => card.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="flex flex-col gap-2">
+            <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1 sm:max-h-[58vh]">
               {sortedCards.map((card) => (
                 <Card
                   key={card.id}
@@ -281,7 +281,7 @@ function ColumnInner({
           </SortableContext>
         )}
 
-        <div className="mt-auto space-y-1.5 border-t border-[var(--app-border)] pt-2">
+        <div className="space-y-1.5 border-t border-[var(--app-border)] pt-2">
           <input
             type="text"
             value={newCardTitle}

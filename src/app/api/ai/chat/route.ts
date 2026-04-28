@@ -2,10 +2,16 @@ import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { buildBoardContext } from "@/lib/ai/boardContext";
 import { boardTools } from "@/lib/ai/tools";
+import { createBoardFromTemplate } from "@/lib/createBoardFromTemplate";
 import { persistColumnUrgencyOrder } from "@/lib/persistColumnUrgencyOrder";
 import { clampUrgencyScoreOrDefault } from "@/lib/urgencyScore";
 import { getNextBoardPositionForUser } from "@/lib/nextBoardPosition";
 import { createClient } from "@/lib/supabase/server";
+import {
+  BOARD_TEMPLATE_DEFINITIONS,
+  type BoardTemplateDefinition,
+  resolveBoardTemplate,
+} from "@/lib/templates";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY!,
@@ -56,6 +62,33 @@ function parseDeterministicCommand(message: string) {
     if (hit?.[1]) {
       return { type: p.type, name: hit[1].trim() } as const;
     }
+  }
+  return null;
+}
+
+function resolveTemplateDefinitionByInput(
+  templateInput: string,
+): BoardTemplateDefinition | null {
+  const normalized = normalizeText(templateInput);
+  const aliasToId: Record<string, string> = {
+    kanban: "kanban",
+    klasik: "kanban",
+    classic: "kanban",
+    scrum: "scrum",
+    sprint: "scrum",
+    marketing: "marketing",
+    pazarlama: "marketing",
+    personal: "personal",
+    kisi: "personal",
+    kisisel: "personal",
+    empty: "empty",
+    bos: "empty",
+  };
+
+  const directId = aliasToId[normalized] ?? normalized;
+  const byId = BOARD_TEMPLATE_DEFINITIONS.find((d) => d.id === directId);
+  if (byId) {
+    return byId;
   }
   return null;
 }
@@ -197,6 +230,7 @@ export async function POST(req: NextRequest) {
               `${isTr ? "Sen TaskFlow AI asistanısın." : "You are the TaskFlow AI assistant."}
 Kullanıcı board seviyesinde işlem isteyebilir:
 - "yeni board oluştur [ad]"
+- "şablonla board oluştur [ad] [kanban|scrum|marketing|personal]"
 - "board sil [ad]"
 - "board listele"
 Gerekli olduğunda uygun tool'u çağır.
@@ -235,6 +269,49 @@ ${txt("Yanıtların kısa ve net Türkçe olsun.", "Reply in concise and clear E
             }
           } else {
             replyOverride = txt("Board adı 3-100 karakter arasında olmalı.", "Board name must be between 3 and 100 characters.");
+          }
+        }
+
+        if (toolUse.function.name === "create_board_from_template") {
+          const name = (input.name || "").trim();
+          const templateInput = (input.template || "").trim();
+          const templateDef = resolveTemplateDefinitionByInput(templateInput);
+          if (name.length < 3 || name.length > 100) {
+            replyOverride = txt(
+              "Board adı 3-100 karakter arasında olmalı.",
+              "Board name must be between 3 and 100 characters.",
+            );
+          } else if (!templateDef) {
+            replyOverride = txt(
+              `Şablon bulunamadı: "${templateInput}".`,
+              `Template not found: "${templateInput}".`,
+            );
+          } else {
+            const template = resolveBoardTemplate(templateDef, isTr ? "tr" : "en");
+            const createdResult = await createBoardFromTemplate(
+              supabase,
+              user.id,
+              name,
+              template,
+            );
+            if ("error" in createdResult) {
+              replyOverride = txt(
+                "Şablon ile board oluşturulamadı.",
+                "Could not create board from template.",
+              );
+            } else {
+              const { data: createdBoard } = await supabase
+                .from("boards")
+                .select("id, title, created_at, user_id, position")
+                .eq("id", createdResult.boardId)
+                .single();
+              actionResult = "create_board";
+              actionData = { board: createdBoard ?? { id: createdResult.boardId, title: name } };
+              replyOverride = txt(
+                `"${name}" board'u "${template.name}" şablonuyla oluşturuldu.`,
+                `Board "${name}" was created with "${template.name}" template.`,
+              );
+            }
           }
         }
 
@@ -701,6 +778,49 @@ ${txt("Yanıtlarını Türkçe ver.", "Reply in English.")}`;
             replyOverride = txt(`"${created.title}" board'u oluşturuldu.`, `Board "${created.title}" was created.`);
           } else {
             replyOverride = txt("Board oluşturulamadı.", "Board could not be created.");
+          }
+        }
+      }
+
+      if (toolUse.function.name === "create_board_from_template") {
+        const name = (input.name || "").trim();
+        const templateInput = (input.template || "").trim();
+        const templateDef = resolveTemplateDefinitionByInput(templateInput);
+        if (name.length < 3 || name.length > 100) {
+          replyOverride = txt(
+            "Board adı 3-100 karakter arasında olmalı.",
+            "Board name must be between 3 and 100 characters.",
+          );
+        } else if (!templateDef) {
+          replyOverride = txt(
+            `Şablon bulunamadı: "${templateInput}".`,
+            `Template not found: "${templateInput}".`,
+          );
+        } else {
+          const template = resolveBoardTemplate(templateDef, isTr ? "tr" : "en");
+          const createdResult = await createBoardFromTemplate(
+            supabase,
+            user.id,
+            name,
+            template,
+          );
+          if ("error" in createdResult) {
+            replyOverride = txt(
+              "Şablon ile board oluşturulamadı.",
+              "Could not create board from template.",
+            );
+          } else {
+            const { data: createdBoard } = await supabase
+              .from("boards")
+              .select("id, title, created_at, user_id, position")
+              .eq("id", createdResult.boardId)
+              .single();
+            actionResult = "create_board";
+            actionData = { board: createdBoard ?? { id: createdResult.boardId, title: name } };
+            replyOverride = txt(
+              `"${name}" board'u "${template.name}" şablonuyla oluşturuldu.`,
+              `Board "${name}" was created with "${template.name}" template.`,
+            );
           }
         }
       }

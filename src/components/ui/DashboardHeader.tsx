@@ -24,11 +24,11 @@ export function DashboardHeader({
 
   return (
     <header className="border-b border-[var(--app-border)] bg-[var(--app-card)] px-4 py-3 shadow-sm">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 sm:gap-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Link
             href="/boards"
-            className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-column)] px-3 text-sm font-semibold text-[var(--app-text)] transition hover:bg-[var(--app-page)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C1C7FF]"
+            className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-column)] px-2.5 text-sm font-semibold text-[var(--app-text)] transition hover:bg-[var(--app-page)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C1C7FF] sm:gap-2 sm:px-3"
             aria-label={t("nav.homeToBoards")}
           >
             <span className="text-lg leading-none text-[#2f5ea3] dark:text-[#9fc3ff]" aria-hidden>
@@ -37,13 +37,13 @@ export function DashboardHeader({
             <span className="truncate">TaskFlow</span>
           </Link>
           <p
-            className="min-w-0 truncate text-sm text-[var(--app-text)]"
+            className="hidden min-w-0 truncate text-sm text-[var(--app-text)] md:block"
             title={signedInLabel !== email ? email : undefined}
           >
             {t("common.user")}: {signedInLabel}
           </p>
         </div>
-        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2 md:gap-3">
           <ThemeLanguageControls />
           <div className="flex items-center justify-end gap-2 sm:shrink-0">
             <Link
@@ -56,8 +56,17 @@ export function DashboardHeader({
               {avatarInitial}
             </Link>
             <form action={signOut} className="shrink-0">
-              <Button type="submit" variant="secondary" className="h-11 min-h-[44px] w-full min-w-0 sm:w-auto">
-                {t("common.logout")}
+              <Button
+                type="submit"
+                variant="secondary"
+                className="h-11 min-h-[44px] min-w-[44px] px-3 sm:w-auto sm:min-w-0"
+                aria-label={t("common.logout")}
+                title={t("common.logout")}
+              >
+                <span className="sm:hidden" aria-hidden>
+                  ↪
+                </span>
+                <span className="hidden sm:inline">{t("common.logout")}</span>
               </Button>
             </form>
           </div>

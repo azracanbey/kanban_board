@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/providers";
+import { createClient } from "@/lib/supabase/client";
 
 interface Message {
   role: "user" | "assistant";
@@ -15,25 +16,28 @@ interface Props {
   onClose?: () => void;
 }
 
-function getWelcomeMessage(boardId: string | undefined, isTr: boolean) {
-  if (boardId) {
+function getWelcomeMessage(isTr: boolean, displayName: string) {
+  const name = displayName.trim();
+  if (name.length > 0) {
     return isTr
-      ? "Merhaba! Board'unu yönetmeme yardım edebilirim. \"Auth kartını Done'a taşı\" veya \"Yeni bug sütunu oluştur\" gibi komutlar verebilirsin."
-      : 'Hi! I can help manage your board. Try commands like "Move Auth card to Done" or "Create a new Bug column".';
+      ? `Merhaba ${name}! Ben TaskFlow asistanın. Sana board oluşturma, görevleri puanlama veya iş akışını yönetme konusunda nasıl yardımcı olabilirim?`
+      : `Hi ${name}! I'm your TaskFlow assistant. How can I help with board setup, task scoring, or workflow management today?`;
   }
 
   return isTr
-    ? "Merhaba! Genel soruları yanıtlayabilirim. Board üzerinde işlem yapmak için bir board sayfasında olmalısın."
-    : "Hi! I can answer general questions. To manage a board, open a board page first.";
+    ? "Merhaba! Ben TaskFlow asistanın. İstediğin her türlü proje yönetim desteği için buradayım. Sana nasıl yardımcı olabilirim?"
+    : "Hi! I'm your TaskFlow assistant. I'm here for all kinds of project management support. How can I help?";
 }
 
 export default function AIChatSidebar({ boardId, onBoardUpdate, onClose }: Props) {
   const { locale } = useI18n();
   const isTr = locale === "tr";
+  const [displayName, setDisplayName] = useState("");
+  const userInitial = displayName.trim().charAt(0).toUpperCase();
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: getWelcomeMessage(boardId, isTr),
+      content: getWelcomeMessage(isTr, ""),
     },
   ]);
   const [input, setInput] = useState("");
@@ -45,13 +49,37 @@ export default function AIChatSidebar({ boardId, onBoardUpdate, onClose }: Props
   }, [messages]);
 
   useEffect(() => {
+    const supabase = createClient();
+    const loadName = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user?.id) {
+          setDisplayName("");
+          return;
+        }
+        const { data } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", user.id)
+          .maybeSingle();
+        setDisplayName((data?.display_name ?? "").trim());
+      } catch {
+        setDisplayName("");
+      }
+    };
+    void loadName();
+  }, []);
+
+  useEffect(() => {
     setMessages((prev) => {
       if (prev.length === 1 && prev[0]?.role === "assistant") {
-        return [{ role: "assistant", content: getWelcomeMessage(boardId, isTr) }];
+        return [{ role: "assistant", content: getWelcomeMessage(isTr, displayName) }];
       }
       return prev;
     });
-  }, [boardId, isTr]);
+  }, [boardId, displayName, isTr]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -155,6 +183,16 @@ export default function AIChatSidebar({ boardId, onBoardUpdate, onClose }: Props
                   : "bg-[var(--app-column)] text-[var(--app-text)]"
               }`}
             >
+              {msg.role === "assistant" && i === 0 ? (
+                <div className="mb-1.5 flex items-center gap-2">
+                  <div className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--app-border)] bg-[var(--app-card)] text-[11px] font-semibold text-[var(--app-text)]">
+                    {userInitial || "👤"}
+                  </div>
+                  <span className="text-[11px] font-medium text-[var(--app-text-muted)]">
+                    {isTr ? "TaskFlow Asistan" : "TaskFlow Assistant"}
+                  </span>
+                </div>
+              ) : null}
               {msg.content}
               {msg.action && (
                 <div className="mt-1 text-xs opacity-60">

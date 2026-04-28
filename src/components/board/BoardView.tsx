@@ -79,7 +79,7 @@ function BoardColumnsListInner({
   onRenameColumn,
 }: BoardColumnsListProps) {
   return (
-    <div className="flex h-full min-h-0 items-stretch gap-0 divide-x divide-[var(--app-border)] pr-1">
+    <div className="flex min-h-0 items-start gap-0 divide-x divide-[var(--app-border)] pr-1">
       {columnsState.map((column, index) => (
         <div key={column.id} className="shrink-0 pl-2 first:pl-1">
           <Column
@@ -563,9 +563,9 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="min-h-[60vh] overflow-hidden rounded border border-[var(--app-border)] bg-[var(--app-column)] shadow-inner sm:min-h-[min(70vh,720px)]">
+          <div className="overflow-hidden rounded border border-[var(--app-border)] bg-[var(--app-column)] shadow-inner">
             <div
-              className="h-full min-h-0 min-w-0 overflow-x-auto p-2"
+              className="min-w-0 overflow-x-auto p-2"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
               <SortableContext
