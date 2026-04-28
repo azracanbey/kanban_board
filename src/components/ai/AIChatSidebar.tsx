@@ -73,12 +73,15 @@ export default function AIChatSidebar({ boardId, onBoardUpdate, onClose }: Props
   }, []);
 
   useEffect(() => {
-    setMessages((prev) => {
-      if (prev.length === 1 && prev[0]?.role === "assistant") {
-        return [{ role: "assistant", content: getWelcomeMessage(isTr, displayName) }];
-      }
-      return prev;
-    });
+    const timeout = window.setTimeout(() => {
+      setMessages((prev) => {
+        if (prev.length === 1 && prev[0]?.role === "assistant") {
+          return [{ role: "assistant", content: getWelcomeMessage(isTr, displayName) }];
+        }
+        return prev;
+      });
+    }, 0);
+    return () => window.clearTimeout(timeout);
   }, [boardId, displayName, isTr]);
 
   const sendMessage = async () => {
@@ -246,7 +249,13 @@ export default function AIChatSidebar({ boardId, onBoardUpdate, onClose }: Props
           </button>
         </div>
         <p className="mt-1.5 text-xs text-[var(--app-text-muted)]">
-          {isTr ? 'Örnek: "Login kartını Done\'a taşı"' : 'Example: "Move the Login card to Done"'}
+          {boardId
+            ? isTr
+              ? 'Örnek: "Login kartını Done\'a taşı"'
+              : 'Example: "Move the Login card to Done"'
+            : isTr
+              ? 'Örnek: "Bana Scrum board\'u oluştur"'
+              : 'Example: "Create a Scrum board for me"'}
         </p>
       </div>
     </div>
