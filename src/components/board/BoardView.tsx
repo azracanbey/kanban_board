@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { useI18n } from "@/providers";
+import { selectCardsByColumnIds } from "@/lib/cardsQuery";
 import { createClient } from "@/lib/supabase/client";
 import type { Board, Card, Column as ColumnType } from "@/lib/types";
 import { getFractionalPosition } from "@/lib/utils/fractionalIndex";
@@ -223,18 +224,17 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
 
         let safeCards: Card[] = [];
         if (columnIds.length > 0) {
-          const { data: nextCards, error: cardsError } = await supabase
-            .from("cards")
-            .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
-            .in("column_id", columnIds)
-            .order("position", { ascending: true });
+          const { data: nextCards, error: cardsError } = await selectCardsByColumnIds(
+            supabase,
+            columnIds,
+          );
 
           if (cardsError) {
             setColumnActionError(t("error.loadBoard"));
             return;
           }
 
-          safeCards = (nextCards ?? []) as Card[];
+          safeCards = nextCards;
         }
 
         setColumnsState(safeColumns);

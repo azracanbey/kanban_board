@@ -1,6 +1,13 @@
 "use client";
 
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  CARD_SELECT_BASE,
+  CARD_SELECT_WITH_AI_MAGIC,
+  isMissingAiMagicAppliedColumn,
+  normalizeCard,
+  stripAiMagicApplied,
+} from "@/lib/cardsQuery";
 import { persistColumnUrgencyOrder } from "@/lib/persistColumnUrgencyOrder";
 import { createClient } from "@/lib/supabase/client";
 import type { Card, Column as ColumnType } from "@/lib/types";
@@ -236,7 +243,7 @@ export function useBoardMutations({
           description: "",
           position: newPosition,
         })
-        .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
+        .select(CARD_SELECT_BASE)
         .single();
 
       if (error) {
@@ -244,8 +251,9 @@ export function useBoardMutations({
       }
 
       if (data) {
+        const createdCard = normalizeCard(data as Card);
         setCardsState((previous) =>
-          previous.map((card) => (card.id === optimisticCard.id ? (data as Card) : card)),
+          previous.map((card) => (card.id === optimisticCard.id ? createdCard : card)),
         );
         const refreshed = await persistColumnUrgencyOrder(supabase, columnId);
         if (refreshed) {
@@ -307,25 +315,39 @@ export function useBoardMutations({
     setCardsState((previous) => [...previous, optimisticCard]);
 
     try {
-      const { data, error } = await supabase
+      const insertRow = {
+        column_id: targetColumnId,
+        title: sourceCard.title,
+        description: sourceCard.description,
+        position: newPosition,
+        urgency_score: sourceCard.urgency_score ?? null,
+        ai_magic_applied: copiedAiMagicApplied,
+      };
+
+      const createdWithAi = await supabase
         .from("cards")
-        .insert({
-          column_id: targetColumnId,
-          title: sourceCard.title,
-          description: sourceCard.description,
-          position: newPosition,
-          urgency_score: sourceCard.urgency_score ?? null,
-          ai_magic_applied: copiedAiMagicApplied,
-        })
-        .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
+        .insert(insertRow)
+        .select(CARD_SELECT_WITH_AI_MAGIC)
         .single();
+      let data = (createdWithAi.data ?? null) as Card | null;
+      let error = createdWithAi.error;
+
+      if (isMissingAiMagicAppliedColumn(error)) {
+        const fallback = await supabase
+          .from("cards")
+          .insert(stripAiMagicApplied(insertRow))
+          .select(CARD_SELECT_BASE)
+          .single();
+        data = (fallback.data ?? null) as Card | null;
+        error = fallback.error;
+      }
 
       if (error) {
         throw error;
       }
 
       if (data) {
-        const pastedCard = data as Card;
+        const pastedCard = normalizeCard(data);
         setCardsState((previous) =>
           previous.map((card) => (card.id === optimisticCard.id ? pastedCard : card)),
         );

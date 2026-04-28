@@ -2,6 +2,14 @@ import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { buildBoardContext } from "@/lib/ai/boardContext";
 import { boardTools } from "@/lib/ai/tools";
+import {
+  CARD_SELECT_BASE,
+  CARD_SELECT_WITH_AI_MAGIC,
+  isMissingAiMagicAppliedColumn,
+  normalizeCard,
+  selectCardsByColumnId,
+  stripAiMagicApplied,
+} from "@/lib/cardsQuery";
 import { createBoardFromTemplate } from "@/lib/createBoardFromTemplate";
 import { persistColumnUrgencyOrder } from "@/lib/persistColumnUrgencyOrder";
 import { clampUrgencyScoreOrDefault } from "@/lib/urgencyScore";
@@ -12,6 +20,7 @@ import {
   type BoardTemplateDefinition,
   resolveBoardTemplate,
 } from "@/lib/templates";
+import type { Card } from "@/lib/types";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY!,
@@ -524,10 +533,21 @@ ${txt("Yanıtların kısa ve net Türkçe olsun.", "Reply in concise and clear E
         };
       });
 
-      const { data: createdCards, error: createError } = await supabase
+      const createdWithAi = await supabase
         .from("cards")
         .insert(rowsToInsert)
-        .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied");
+        .select(CARD_SELECT_WITH_AI_MAGIC);
+      let createdCards = (createdWithAi.data ?? null) as Card[] | null;
+      let createError = createdWithAi.error;
+
+      if (isMissingAiMagicAppliedColumn(createError)) {
+        const fallbackCreate = await supabase
+          .from("cards")
+          .insert(rowsToInsert.map(stripAiMagicApplied))
+          .select(CARD_SELECT_BASE);
+        createdCards = (fallbackCreate.data ?? null) as Card[] | null;
+        createError = fallbackCreate.error;
+      }
 
       if (createError || !createdCards || createdCards.length === 0) {
         return NextResponse.json({
@@ -542,21 +562,26 @@ ${txt("Yanıtların kısa ve net Türkçe olsun.", "Reply in concise and clear E
       }
 
       const parentUrgency = clampUrgencyScoreOrDefault(splitArgs.parent_urgency_score, 5);
-      await supabase
+      const parentUpdate = await supabase
         .from("cards")
         .update({ urgency_score: parentUrgency, ai_magic_applied: true })
         .eq("id", targetCard.id);
+      if (isMissingAiMagicAppliedColumn(parentUpdate.error)) {
+        await supabase
+          .from("cards")
+          .update({ urgency_score: parentUrgency })
+          .eq("id", targetCard.id);
+      }
 
       let columnCardsOrdered = await persistColumnUrgencyOrder(supabase, targetColumnId);
       if (!columnCardsOrdered || columnCardsOrdered.length === 0) {
-        const { data: fallback } = await supabase
-          .from("cards")
-          .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
-          .eq("column_id", targetColumnId)
-          .order("position", { ascending: true });
-        columnCardsOrdered = (fallback ?? []) as typeof columnCardsOrdered;
+        const { data: fallback } = await selectCardsByColumnId(supabase, targetColumnId);
+        columnCardsOrdered = fallback;
       }
-      const createdIds = createdCards.map((c) => c.id);
+      const normalizedCreatedCards = (createdCards as typeof createdCards).map((card) =>
+        normalizeCard(card),
+      );
+      const createdIds = normalizedCreatedCards.map((c) => c.id);
 
       return NextResponse.json({
         reply: txt(
@@ -566,7 +591,7 @@ ${txt("Yanıtların kısa ve net Türkçe olsun.", "Reply in concise and clear E
         action: "create_subtasks",
         actionData: {
           columnId: targetColumnId,
-          createdCards,
+          createdCards: normalizedCreatedCards,
           columnCards: columnCardsOrdered ?? [],
           createdCardIds: createdIds,
         },

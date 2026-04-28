@@ -1,9 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { CARD_SELECT_WITH_AI_MAGIC, isMissingAiMagicAppliedColumn, selectCardsByColumnId } from "@/lib/cardsQuery";
 import type { Card } from "@/lib/types";
 import { sortCardsByUrgencyScoreDesc } from "@/lib/urgencyScore";
-
-const CARD_SELECT =
-  "id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied" as const;
 
 /**
  * Sütundaki kartları aciliyete göre sıralayıp position değerlerini veritabanına yazar.
@@ -16,14 +14,21 @@ export async function persistColumnUrgencyOrder(
   try {
     const { data: rows, error } = await supabase
       .from("cards")
-      .select(CARD_SELECT)
+      .select(CARD_SELECT_WITH_AI_MAGIC)
       .eq("column_id", columnId);
 
-    if (error || !rows?.length) {
+    let sourceRows = (rows ?? []) as Card[];
+    if (isMissingAiMagicAppliedColumn(error)) {
+      const fallback = await selectCardsByColumnId(supabase, columnId);
+      if (fallback.error || !fallback.data.length) {
+        return fallback.error ? null : [];
+      }
+      sourceRows = fallback.data;
+    } else if (error || !rows?.length) {
       return error ? null : [];
     }
 
-    const sorted = sortCardsByUrgencyScoreDesc(rows as Card[]);
+    const sorted = sortCardsByUrgencyScoreDesc(sourceRows);
 
     for (let i = 0; i < sorted.length; i++) {
       const position = (i + 1) * 1000;
@@ -37,17 +42,13 @@ export async function persistColumnUrgencyOrder(
       }
     }
 
-    const { data: refreshed, error: refErr } = await supabase
-      .from("cards")
-      .select(CARD_SELECT)
-      .eq("column_id", columnId)
-      .order("position", { ascending: true });
+    const { data: refreshed, error: refErr } = await selectCardsByColumnId(supabase, columnId);
 
     if (refErr) {
       return null;
     }
 
-    return (refreshed ?? []) as Card[];
+    return refreshed;
   } catch (e) {
     console.error("persistColumnUrgencyOrder:", e instanceof Error ? e.message : e);
     return null;

@@ -1,4 +1,5 @@
 import { BoardView } from "@/components/board/BoardView";
+import { selectCardsByColumnIds } from "@/lib/cardsQuery";
 import { tr } from "@/lib/i18n/dictionaries";
 import { createClient } from "@/lib/supabase/server";
 import type { Board, Card, Column } from "@/lib/types";
@@ -53,16 +54,15 @@ export default async function BoardDetailPage({ params }: BoardDetailPageProps) 
 
       if (!errorMessage && columns.length > 0) {
         const columnIds = columns.map((column) => column.id);
-        const { data: cardData, error: cardError } = await supabase
-          .from("cards")
-          .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
-          .in("column_id", columnIds)
-          .order("position", { ascending: true });
+        const { data: cardData, error: cardError } = await selectCardsByColumnIds(
+          supabase,
+          columnIds,
+        );
 
         if (cardError) {
           errorMessage = cardError.message;
         } else {
-          cards = (cardData ?? []) as Card[];
+          cards = cardData;
         }
       }
     }
