@@ -55,11 +55,15 @@ type BoardColumnsListProps = {
   cardsByColumn: Record<string, Card[]>;
   deletingCardId: string | null;
   splittingCardId: string | null;
+  pastingColumnId: string | null;
   freshCardIds: string[];
+  copiedCard: Card | null;
   deletingColumnId: string | null;
   onAddCard: (columnId: string, title: string) => Promise<void>;
   onDeleteCard: (cardId: string) => void;
   onAIMagicCard: (card: Card) => Promise<void>;
+  onCopyCard: (card: Card) => void;
+  onPasteCard: (columnId: string) => Promise<void>;
   onDeleteColumn: (columnId: string) => void;
   onEditCard: (card: Card) => void;
   onRenameColumn: (columnId: string, title: string) => Promise<void>;
@@ -70,11 +74,15 @@ function BoardColumnsListInner({
   cardsByColumn,
   deletingCardId,
   splittingCardId,
+  pastingColumnId,
   freshCardIds,
+  copiedCard,
   deletingColumnId,
   onAddCard,
   onDeleteCard,
   onAIMagicCard,
+  onCopyCard,
+  onPasteCard,
   onDeleteColumn,
   onEditCard,
   onRenameColumn,
@@ -89,11 +97,15 @@ function BoardColumnsListInner({
             cards={cardsByColumn[column.id] ?? []}
             deletingCardId={deletingCardId}
             splittingCardId={splittingCardId}
+            pastingColumnId={pastingColumnId}
             freshCardIds={freshCardIds}
+            copiedCard={copiedCard}
             isDeleting={deletingColumnId === column.id}
             onAddCard={onAddCard}
             onDeleteCard={onDeleteCard}
             onAIMagicCard={onAIMagicCard}
+            onCopyCard={onCopyCard}
+            onPasteCard={onPasteCard}
             onDeleteColumn={onDeleteColumn}
             onEditCard={onEditCard}
             onRenameColumn={onRenameColumn}
@@ -113,6 +125,7 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
   const [cardsState, setCardsState] = useState<Card[]>(cards);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [copiedCard, setCopiedCard] = useState<Card | null>(null);
   const [dragError, setDragError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteTarget | null>(
     null,
@@ -133,6 +146,7 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
     deletingColumnId,
     deletingCardId,
     splittingCardId,
+    pastingColumnId,
     freshCardIds,
     setEditTitle,
     setEditDescription,
@@ -146,6 +160,7 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
     performDeleteColumn,
     handleAddCard,
     performDeleteCard,
+    pasteCardToColumn,
     splitCardIntoSubtasks,
   } = useBoardMutations({
     boardId: board.id,
@@ -234,7 +249,7 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
     window.addEventListener("taskflow:board-mutated", handler as EventListener);
     return () =>
       window.removeEventListener("taskflow:board-mutated", handler as EventListener);
-  }, [board.id, supabase, t]);
+  }, [board.id, setColumnActionError, supabase, t]);
 
   const cardsByColumn = useMemo(
     () => groupCardsByColumn(columnsState, cardsState),
@@ -475,6 +490,25 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
     [splitCardIntoSubtasks],
   );
 
+  const handleCopyCardRequest = useCallback(
+    (card: Card) => {
+      setColumnActionError(null);
+      setCopiedCard(card);
+    },
+    [setColumnActionError],
+  );
+
+  const handlePasteCardRequest = useCallback(
+    async (columnId: string) => {
+      if (!copiedCard) {
+        return;
+      }
+      await pasteCardToColumn(copiedCard, columnId);
+      setCopiedCard(null);
+    },
+    [copiedCard, pasteCardToColumn],
+  );
+
   return (
     <section className="space-y-3">
       <div className="flex flex-col gap-3 border-b border-[var(--app-border)] bg-[var(--app-card)] px-2 pb-3 pt-1 sm:flex-row sm:items-end sm:justify-between sm:px-0">
@@ -594,11 +628,15 @@ export function BoardView({ board, cards, columns, userDisplayName }: BoardViewP
                   cardsByColumn={cardsByColumn}
                   deletingCardId={deletingCardId}
                   splittingCardId={splittingCardId}
+                  pastingColumnId={pastingColumnId}
                   freshCardIds={freshCardIds}
+                  copiedCard={copiedCard}
                   deletingColumnId={deletingColumnId}
                   onAddCard={handleAddCard}
                   onDeleteCard={handleDeleteCardRequest}
                   onAIMagicCard={handleAIMagicCardRequest}
+                  onCopyCard={handleCopyCardRequest}
+                  onPasteCard={handlePasteCardRequest}
                   onDeleteColumn={handleDeleteColumnRequest}
                   onEditCard={openEditModal}
                   onRenameColumn={handleRenameColumn}

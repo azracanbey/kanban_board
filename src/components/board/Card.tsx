@@ -11,6 +11,7 @@ import type { Card as CardType } from "@/lib/types";
 type CardProps = {
   card: CardType;
   onEdit: (card: CardType) => void;
+  onCopy: (card: CardType) => void;
   onDelete: (cardId: string) => void;
   onAIMagic: (card: CardType) => Promise<void>;
   isDeleting: boolean;
@@ -18,7 +19,16 @@ type CardProps = {
   isFresh: boolean;
 };
 
-function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit, onAIMagic }: CardProps) {
+function CardInner({
+  card,
+  isDeleting,
+  isMagicLoading,
+  isFresh,
+  onCopy,
+  onDelete,
+  onEdit,
+  onAIMagic,
+}: CardProps) {
   const { t } = useI18n();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
@@ -197,6 +207,16 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
             </button>
             <button
               type="button"
+              className="min-h-9 min-w-9 rounded px-1.5 py-0.5 text-[10px] font-medium text-[var(--app-text)] hover:bg-[var(--app-column)] sm:min-h-0 sm:min-w-0"
+              onClick={(event) => {
+                event.stopPropagation();
+                onCopy(card);
+              }}
+            >
+              {t("common.copy")}
+            </button>
+            <button
+              type="button"
               className="min-h-9 min-w-9 rounded px-1.5 py-0.5 text-[10px] font-medium text-[#2f5ea3] hover:bg-[#e8f1ff] disabled:opacity-50 dark:text-[#9fc3ff] dark:hover:bg-[#1d2a3f] sm:min-h-0 sm:min-w-0"
               onClick={async (event) => {
                 event.stopPropagation();
@@ -225,7 +245,7 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
       ) : null}
       {isCoarsePointer && showMobileMenu ? (
         <div
-          className="absolute right-0 top-0 z-50 flex min-w-[160px] flex-col gap-1 rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] p-1 shadow-lg dark:border-[#3A3D52] dark:bg-[#1E2130]"
+          className="absolute right-1 top-1 z-[9999] flex min-w-[160px] flex-col gap-1 rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] p-1 shadow-lg dark:border-[#3A3D52] dark:bg-[#1E2130]"
           onPointerDown={(event) => event.stopPropagation()}
           role="menu"
         >
@@ -240,6 +260,18 @@ function CardInner({ card, isDeleting, isMagicLoading, isFresh, onDelete, onEdit
             }}
           >
             ✏️ {t("common.edit")}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="min-h-11 rounded-lg px-3 py-2 text-left text-sm font-medium text-[var(--app-text)] hover:bg-[var(--app-column)]"
+            onClick={(event) => {
+              event.stopPropagation();
+              onCopy(card);
+              setShowMobileMenu(false);
+            }}
+          >
+            📋 {t("common.copy")}
           </button>
           <button
             type="button"

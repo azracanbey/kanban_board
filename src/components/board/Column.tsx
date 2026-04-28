@@ -19,14 +19,18 @@ type ColumnProps = {
   columnIndex: number;
   cards: CardType[];
   onEditCard: (card: CardType) => void;
+  onCopyCard: (card: CardType) => void;
   onDeleteCard: (cardId: string) => void;
   onAIMagicCard: (card: CardType) => Promise<void>;
   deletingCardId: string | null;
   splittingCardId: string | null;
+  pastingColumnId: string | null;
   freshCardIds: string[];
+  copiedCard: CardType | null;
   onDeleteColumn: (columnId: string) => void;
   isDeleting: boolean;
   onAddCard: (columnId: string, title: string) => Promise<void>;
+  onPasteCard: (columnId: string) => Promise<void>;
   onRenameColumn: (columnId: string, title: string) => Promise<void>;
 };
 
@@ -36,11 +40,15 @@ function ColumnInner({
   columnIndex,
   deletingCardId,
   splittingCardId,
+  pastingColumnId,
   freshCardIds,
+  copiedCard,
   isDeleting,
   onAddCard,
   onDeleteCard,
   onAIMagicCard,
+  onCopyCard,
+  onPasteCard,
   onDeleteColumn,
   onEditCard,
   onRenameColumn,
@@ -176,6 +184,7 @@ function ColumnInner({
   const overRing = isOver
     ? "ring-2 ring-[#C1C7FF] ring-offset-1 ring-offset-[var(--app-page)] dark:ring-[#3A3D52] dark:ring-offset-[#0f1117]"
     : "";
+  const isPastingCard = pastingColumnId === column.id;
 
   return (
     <section
@@ -183,7 +192,7 @@ function ColumnInner({
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex h-fit w-full max-w-none shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] shadow-sm md:w-[240px] md:max-w-[240px] ${overRing} transition-shadow`}
+      className={`flex h-fit w-full max-w-none shrink-0 flex-col overflow-visible rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] shadow-sm md:w-[240px] md:max-w-[240px] ${overRing} transition-shadow`}
     >
         {isEditingTitle ? (
           <div
@@ -270,7 +279,7 @@ function ColumnInner({
             items={sortedCards.map((card) => card.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1 sm:max-h-[58vh]">
+            <div className="max-h-[52vh] space-y-2 overflow-visible pr-1 sm:max-h-[58vh] md:overflow-y-auto">
               {sortedCards.map((card) => (
                 <Card
                   key={card.id}
@@ -280,12 +289,33 @@ function ColumnInner({
                   isFresh={freshCardIds.includes(card.id)}
                   onDelete={onDeleteCard}
                   onAIMagic={onAIMagicCard}
+                  onCopy={onCopyCard}
                   onEdit={onEditCard}
                 />
               ))}
             </div>
           </SortableContext>
         )}
+
+        {copiedCard ? (
+          <button
+            type="button"
+            className="rounded-md border border-dashed border-[#C1C7FF] bg-[var(--app-card)] px-3 py-2 text-xs font-semibold text-[var(--app-text)] transition hover:bg-[var(--app-column)] disabled:cursor-not-allowed disabled:opacity-60"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              void onPasteCard(column.id).catch((error) => {
+                setCardError(error instanceof Error ? error.message : t("board.errorCardPaste"));
+              });
+            }}
+            disabled={isPastingCard}
+            title={copiedCard.title}
+          >
+            {isPastingCard
+              ? t("board.cardPasting")
+              : `${t("common.paste")}: ${copiedCard.title}`}
+          </button>
+        ) : null}
 
         <form
           className="space-y-1.5 border-t border-[var(--app-border)] pt-2"

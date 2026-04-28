@@ -44,6 +44,7 @@ export function useBoardMutations({
   const [deletingColumnId, setDeletingColumnId] = useState<string | null>(null);
   const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
   const [splittingCardId, setSplittingCardId] = useState<string | null>(null);
+  const [pastingColumnId, setPastingColumnId] = useState<string | null>(null);
   const [freshCardIds, setFreshCardIds] = useState<string[]>([]);
 
   const editingCard =
@@ -281,6 +282,67 @@ export function useBoardMutations({
     }
   };
 
+  const pasteCardToColumn = async (sourceCard: Card, targetColumnId: string) => {
+    setColumnActionError(null);
+    setPastingColumnId(targetColumnId);
+
+    const columnCards = cardsState
+      .filter((card) => card.column_id === targetColumnId)
+      .sort((a, b) => a.position - b.position);
+    const lastPosition = columnCards[columnCards.length - 1]?.position;
+    const newPosition = getFractionalPosition(lastPosition, undefined);
+    const copiedAiMagicApplied = sourceCard.ai_magic_applied === true;
+
+    const optimisticCard: Card = {
+      id: `temp-copy-${Date.now()}`,
+      column_id: targetColumnId,
+      title: sourceCard.title,
+      description: sourceCard.description,
+      position: newPosition,
+      created_at: new Date().toISOString(),
+      urgency_score: sourceCard.urgency_score ?? null,
+      ai_magic_applied: copiedAiMagicApplied,
+    };
+
+    setCardsState((previous) => [...previous, optimisticCard]);
+
+    try {
+      const { data, error } = await supabase
+        .from("cards")
+        .insert({
+          column_id: targetColumnId,
+          title: sourceCard.title,
+          description: sourceCard.description,
+          position: newPosition,
+          urgency_score: sourceCard.urgency_score ?? null,
+          ai_magic_applied: copiedAiMagicApplied,
+        })
+        .select("id, column_id, title, description, position, created_at, urgency_score, ai_magic_applied")
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        const pastedCard = data as Card;
+        setCardsState((previous) =>
+          previous.map((card) => (card.id === optimisticCard.id ? pastedCard : card)),
+        );
+        setFreshCardIds((previous) => [...previous, pastedCard.id]);
+        window.setTimeout(() => {
+          setFreshCardIds((previous) => previous.filter((id) => id !== pastedCard.id));
+        }, 1200);
+      }
+    } catch {
+      setCardsState((previous) => previous.filter((card) => card.id !== optimisticCard.id));
+      setColumnActionError(t("board.errorCardPaste"));
+      throw new Error(t("board.errorCardPaste"));
+    } finally {
+      setPastingColumnId(null);
+    }
+  };
+
   const splitCardIntoSubtasks = async (card: Card) => {
     if (card.ai_magic_applied) {
       setColumnActionError(
@@ -414,6 +476,7 @@ export function useBoardMutations({
     deletingColumnId,
     deletingCardId,
     splittingCardId,
+    pastingColumnId,
     freshCardIds,
     setEditTitle,
     setEditDescription,
@@ -427,6 +490,7 @@ export function useBoardMutations({
     performDeleteColumn,
     handleAddCard,
     performDeleteCard,
+    pasteCardToColumn,
     splitCardIntoSubtasks,
   };
 }

@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ThemeLanguageControls } from "@/components/ui/ThemeLanguageControls";
 import { useI18n } from "@/providers";
+import taskflowLogo from "../../../logo.png";
 
 type DashboardHeaderProps = {
   email: string;
@@ -46,13 +48,15 @@ export function DashboardHeader({
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Link
             href="/boards"
-            className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-column)] px-2.5 text-sm font-semibold text-[var(--app-text)] transition hover:bg-[var(--app-page)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C1C7FF] sm:gap-2 sm:px-3"
+            className="inline-flex shrink-0 items-center justify-center rounded-md transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C1C7FF]"
             aria-label={t("nav.homeToBoards")}
           >
-            <span className="text-lg leading-none text-[#2f5ea3] dark:text-[#9fc3ff]" aria-hidden>
-              ⌂
-            </span>
-            <span className="truncate">TaskFlow</span>
+            <Image
+              src={taskflowLogo}
+              alt="TaskFlow"
+              className="h-12 w-auto object-contain"
+              priority
+            />
           </Link>
           <p
             className="hidden min-w-0 truncate text-sm text-[var(--app-text)] md:block"
